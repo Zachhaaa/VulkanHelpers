@@ -26,9 +26,11 @@ struct TextureImageCreateInfo {
 
 };
 struct TextureImageResources {
+
 	VkImage*         pTexImg; 
 	VkDeviceMemory*  pTexImgMem;
 	VkImageView*     pTexImgView; 
+
 };
 
 VkShaderModule  createShaderModule (VkDevice device, const char* fileName);

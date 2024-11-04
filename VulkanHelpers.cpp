@@ -20,9 +20,9 @@ VkShaderModule vlknh::createShaderModule(VkDevice device, const char* fileName) 
 	fclose(file);
 
 	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+	createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 	createInfo.codeSize = fileSize;
-	createInfo.pCode = (uint32_t*)byteCode.get();
+	createInfo.pCode    = (uint32_t*)byteCode.get();
 
 	VkShaderModule shaderModule;
 	VkResult err = vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule);
@@ -35,8 +35,8 @@ void vlknh::createBuffer(VkDevice device, const BufferCreateInfo& createInfo, Vk
 
 	VkBufferCreateInfo buffInfo{};
 	buffInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffInfo.size  = createInfo.size;
-	buffInfo.usage = createInfo.usage;
+	buffInfo.size        = createInfo.size;
+	buffInfo.usage       = createInfo.usage;
 	buffInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	VkResult err = vkCreateBuffer(device, &buffInfo, nullptr, buff);
@@ -67,12 +67,15 @@ void vlknh::createBuffer(VkDevice device, const BufferCreateInfo& createInfo, Vk
 
 }
 void vlknh::loadBuffer(VkDevice device, VkDeviceMemory buffMem, void* buffData, VkDeviceSize buffSize) {
+
 	void* data;
 	vkMapMemory(device, buffMem, 0, buffSize, 0, &data);
 	memcpy(data, buffData, buffSize);
 	vkUnmapMemory(device, buffMem);
+
 }
 VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources) {
+
 	assert(createInfo.pPixelData != nullptr); 
 
 	VkBuffer       stagingBuffer; 
@@ -136,7 +139,7 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 	barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 	barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	barrier.image = *imgResources.pTexImg;
+	barrier.image               = *imgResources.pTexImg;
 	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	barrier.subresourceRange.baseMipLevel   = 0;
 	barrier.subresourceRange.levelCount     = 1;
