@@ -3,7 +3,51 @@
 #include <cstdio> 
 #include <cassert>
 #include <memory>
+#include <vector>
 
+VkResult vlknh::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+	if (func != nullptr) {
+		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+	}
+	else {
+		return VK_ERROR_EXTENSION_NOT_PRESENT;
+	}
+}
+void vlknh::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+	if (func != nullptr) {
+		func(instance, debugMessenger, pAllocator);
+	}
+}
+
+bool vlknh::getQueueFamilyFlagsIndex(VkPhysicalDevice physicalDevice, VkQueueFlags desiredQueueFlags, uint32_t* index) {
+	uint32_t queueFamilyPropertyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
+	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyPropertyCount);
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, queueFamilies.data());
+
+	*index = 0; 
+	for (const VkQueueFamilyProperties& queueFamily : queueFamilies) {
+		if (queueFamily.queueFlags & desiredQueueFlags)
+			return true;
+
+		(*index)++; 
+	}
+	return false; 
+}
+bool vlknh::getQueueFamilyPresentIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* index) {
+	uint32_t queueFamilyPropertyCount = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
+
+	*index = 0; 
+	for (; *index < queueFamilyPropertyCount; (*index)++) {
+		VkBool32 presentSupport = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, *index, surface, &presentSupport);
+		if (presentSupport) return true;
+	}
+	return false;
+}
 VkShaderModule vlknh::createShaderModule(VkDevice device, const char* fileName) {
 
 	FILE* file = fopen(fileName, "rb");

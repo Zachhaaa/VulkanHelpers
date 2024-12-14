@@ -33,10 +33,15 @@ struct TextureImageResources {
 
 };
 
-VkShaderModule  createShaderModule (VkDevice device, const char* fileName);
-void            createBuffer       (VkDevice device, const BufferCreateInfo& createInfo, VkBuffer* buff, VkDeviceMemory* buffMem);
-void            loadBuffer         (VkDevice device, VkDeviceMemory buffMem, void* buffData, VkDeviceSize buffSize);
-VkDescriptorSet createTextureImage (VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources);
+VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+void     DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
+bool            getQueueFamilyFlagsIndex   (VkPhysicalDevice physicalDevice, VkQueueFlags desiredQueueFlags, uint32_t* index);
+bool            getQueueFamilyPresentIndex (VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* index); 
+VkShaderModule  createShaderModule         (VkDevice device, const char* fileName);
+void            createBuffer               (VkDevice device, const BufferCreateInfo& createInfo, VkBuffer* buff, VkDeviceMemory* buffMem);
+void            loadBuffer                 (VkDevice device, VkDeviceMemory buffMem, void* buffData, VkDeviceSize buffSize);
+VkDescriptorSet createTextureImage         (VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources);
 
 	namespace SingleTimeCommandBuffer {
 
