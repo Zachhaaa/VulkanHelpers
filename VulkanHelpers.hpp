@@ -45,12 +45,9 @@ VkDescriptorSet createTextureImage         (VkDevice device, const TextureImageC
 
 	namespace SingleTimeCommandBuffer {
 
-	void        begin  (VkDevice device, VkCommandPool commandPool, VkCommandBuffer* cmdBuff);
-	inline void copy   (VkCommandBuffer cmdBuff, VkDeviceSize buffSize, VkBuffer src, VkBuffer dst) {
-		VkBufferCopy copyRegion = { 0, 0, buffSize };
-		vkCmdCopyBuffer(cmdBuff, src, dst, 1, &copyRegion);
-	}
-	void        submit (VkDevice device, VkCommandBuffer cmdBuff, VkCommandPool commandPool, VkQueue graphicsQueue);
+	void begin  (VkDevice device, VkCommandPool commandPool, VkCommandBuffer* cmdBuff);
+	void copy   (VkCommandBuffer cmdBuff, VkDeviceSize buffSize, VkBuffer src, VkBuffer dst); 
+	void submit (VkDevice device, VkCommandBuffer cmdBuff, VkCommandPool commandPool, VkQueue graphicsQueue);
 
 	}
 

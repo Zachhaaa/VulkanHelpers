@@ -304,6 +304,10 @@ void vlknh::SingleTimeCommandBuffer::begin(VkDevice device, VkCommandPool comman
 
 	vkBeginCommandBuffer(*cmdBuff, &beginInfo);
 }
+void vlknh::SingleTimeCommandBuffer::copy(VkCommandBuffer cmdBuff, VkDeviceSize buffSize, VkBuffer src, VkBuffer dst) {
+	VkBufferCopy copyRegion = { 0, 0, buffSize };
+	vkCmdCopyBuffer(cmdBuff, src, dst, 1, &copyRegion);
+}
 void vlknh::SingleTimeCommandBuffer::submit(VkDevice device, VkCommandBuffer cmdBuff, VkCommandPool commandPool, VkQueue graphicsQueue) {
 
 	vkEndCommandBuffer(cmdBuff);
