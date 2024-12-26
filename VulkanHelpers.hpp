@@ -13,6 +13,16 @@ struct BufferCreateInfo {
 
 };
 
+struct LoadLocalBufferInfo {
+
+	VkPhysicalDevice physicalDevice;
+	VkCommandPool    commandPool; 
+	VkQueue          commandQueue; 
+	VkDeviceSize     size;
+	void*            data; 
+
+};
+
 struct TextureImageCreateInfo {
 
 	VkPhysicalDevice      physicalDevice;
@@ -41,6 +51,7 @@ bool            getQueueFamilyPresentIndex (VkPhysicalDevice physicalDevice, VkS
 VkShaderModule  createShaderModule         (VkDevice device, const char* fileName);
 void            createBuffer               (VkDevice device, const BufferCreateInfo& createInfo, VkBuffer* buff, VkDeviceMemory* buffMem);
 void            loadBuffer                 (VkDevice device, VkDeviceMemory buffMem, void* buffData, VkDeviceSize buffSize);
+void            loadDeviceLocalBuffer      (VkDevice device, const LoadLocalBufferInfo& loadInfo, VkBuffer deviceLocalBuffer);
 VkDescriptorSet createTextureImage         (VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources);
 
 	namespace SingleTimeCommandBuffer {

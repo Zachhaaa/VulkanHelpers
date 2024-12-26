@@ -118,6 +118,32 @@ void vlknh::loadBuffer(VkDevice device, VkDeviceMemory buffMem, void* buffData, 
 	vkUnmapMemory(device, buffMem);
 
 }
+void vlknh::loadDeviceLocalBuffer(VkDevice device, const LoadLocalBufferInfo& loadInfo,  VkBuffer deviceLocalBuffer) {
+	
+	VkBuffer       stageBuff; 
+	VkDeviceMemory stageMem; 
+
+	vlknh::BufferCreateInfo buffInfo{};
+    buffInfo.physicalDevice = loadInfo.physicalDevice;
+    buffInfo.size           = loadInfo.size;
+    buffInfo.usage          = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    buffInfo.properties     = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
+	vlknh::createBuffer(device, buffInfo, &stageBuff, &stageMem);
+	vlknh::loadBuffer(device, stageMem, loadInfo.data, loadInfo.size);
+
+	VkCommandBuffer singleTimeBuff;
+	vlknh::SingleTimeCommandBuffer::begin(device, loadInfo.commandPool, &singleTimeBuff);
+	vlknh::SingleTimeCommandBuffer::copy(singleTimeBuff, loadInfo.size, stageBuff, deviceLocalBuffer);
+	vlknh::SingleTimeCommandBuffer::submit(device, singleTimeBuff, loadInfo.commandPool, loadInfo.commandQueue);
+
+	vkQueueWaitIdle(loadInfo.commandQueue);
+
+	vkFreeCommandBuffers(device, loadInfo.commandPool, 1, &singleTimeBuff);
+	vkFreeMemory(device, stageMem, nullptr);
+	vkDestroyBuffer(device, stageBuff, nullptr);
+
+}
 VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources) {
 
 	assert(createInfo.pPixelData != nullptr); 
