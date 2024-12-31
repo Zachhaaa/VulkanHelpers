@@ -132,14 +132,10 @@ void vlknh::loadDeviceLocalBuffer(VkDevice device, const LoadLocalBufferInfo& lo
 	vlknh::createBuffer(device, buffInfo, &stageBuff, &stageMem);
 	vlknh::loadBuffer(device, stageMem, loadInfo.data, loadInfo.size);
 
-	VkCommandBuffer singleTimeBuff;
-	vlknh::SingleTimeCommandBuffer::begin(device, loadInfo.commandPool, &singleTimeBuff);
-	vlknh::SingleTimeCommandBuffer::copy(singleTimeBuff, loadInfo.size, stageBuff, deviceLocalBuffer);
-	vlknh::SingleTimeCommandBuffer::submit(device, singleTimeBuff, loadInfo.commandPool, loadInfo.commandQueue);
+	SingleTimeCommandBuffer singleTimeBuff(device, loadInfo.commandPool, loadInfo.commandQueue); 
+	singleTimeBuff.copy(loadInfo.size, stageBuff, deviceLocalBuffer);
+	singleTimeBuff.submit(); 
 
-	vkQueueWaitIdle(loadInfo.commandQueue);
-
-	vkFreeCommandBuffers(device, loadInfo.commandPool, 1, &singleTimeBuff);
 	vkFreeMemory(device, stageMem, nullptr);
 	vkDestroyBuffer(device, stageBuff, nullptr);
 
@@ -200,8 +196,7 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 
 	vkBindImageMemory(device, *imgResources.pTexImg, *imgResources.pTexImgMem, 0);
 
-	VkCommandBuffer singleTimeBuff; 
-	SingleTimeCommandBuffer::begin(device, createInfo.commandPool, &singleTimeBuff); 
+	SingleTimeCommandBuffer singleTimeBuff(device, createInfo.commandPool, createInfo.graphicsQueue);
 
 	VkImageMemoryBarrier barrier{};
 	barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -219,7 +214,7 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 	barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 
 	vkCmdPipelineBarrier(
-		singleTimeBuff,
+		singleTimeBuff.m_cmdBuff,
 		VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 		0,
 		0, nullptr,
@@ -239,7 +234,7 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 	region.imageExtent = { createInfo.imageSize.width, createInfo.imageSize.height, 1 };
 
 	vkCmdCopyBufferToImage(
-		singleTimeBuff,
+		singleTimeBuff.m_cmdBuff,
 		stagingBuffer,
 		*imgResources.pTexImg,
 		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -253,7 +248,7 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 	barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
 	vkCmdPipelineBarrier(
-		singleTimeBuff,
+		singleTimeBuff.m_cmdBuff,
 		VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 		0,
 		0, nullptr,
@@ -261,11 +256,8 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 		1, &barrier
 	);
 	
-	SingleTimeCommandBuffer::submit(device, singleTimeBuff, createInfo.commandPool, createInfo.graphicsQueue); 
+	singleTimeBuff.submit(); 
 
-	vkQueueWaitIdle(createInfo.graphicsQueue);
-
-	vkFreeCommandBuffers(device, createInfo.commandPool, 1, &singleTimeBuff);
 	vkFreeMemory        (device, stagingBuffMem, nullptr);
 	vkDestroyBuffer     (device, stagingBuffer, nullptr);
 
@@ -313,7 +305,13 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 
 }
 
-void vlknh::SingleTimeCommandBuffer::begin(VkDevice device, VkCommandPool commandPool, VkCommandBuffer* cmdBuff) {
+vlknh::SingleTimeCommandBuffer::SingleTimeCommandBuffer(VkDevice device, VkCommandPool commandPool, VkQueue deviceQueue, bool beginRecordingCmds) {
+	
+	m_device          = device; 
+	m_deviceQueue     = deviceQueue;
+	m_commandPool     = commandPool;
+	m_bufferRecording = false;
+	m_bufferSubmitted = false;
 
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -321,28 +319,55 @@ void vlknh::SingleTimeCommandBuffer::begin(VkDevice device, VkCommandPool comman
 	allocInfo.commandPool        = commandPool;
 	allocInfo.commandBufferCount = 1;
 
+	vkAllocateCommandBuffers(m_device, &allocInfo, &m_cmdBuff);
 
-	vkAllocateCommandBuffers(device, &allocInfo, cmdBuff);
+	if (beginRecordingCmds) {
+		begin();
+	}
+}
+void vlknh::SingleTimeCommandBuffer::begin() {
+
+	assert(!m_bufferRecording && "Already began recording commands");
+	if (m_bufferRecording) return;
+
+	m_bufferRecording = true;
 
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-	vkBeginCommandBuffer(*cmdBuff, &beginInfo);
-}
-void vlknh::SingleTimeCommandBuffer::copy(VkCommandBuffer cmdBuff, VkDeviceSize buffSize, VkBuffer src, VkBuffer dst) {
-	VkBufferCopy copyRegion = { 0, 0, buffSize };
-	vkCmdCopyBuffer(cmdBuff, src, dst, 1, &copyRegion);
-}
-void vlknh::SingleTimeCommandBuffer::submit(VkDevice device, VkCommandBuffer cmdBuff, VkCommandPool commandPool, VkQueue graphicsQueue) {
+	vkBeginCommandBuffer(m_cmdBuff, &beginInfo);
 
-	vkEndCommandBuffer(cmdBuff);
+}
+void vlknh::SingleTimeCommandBuffer::copy(VkDeviceSize buffSize, VkBuffer src, VkBuffer dst) {
+
+	assert(m_bufferRecording && "Never called begin() on command buffer."); 
+
+	VkBufferCopy copyRegion = { 0, 0, buffSize };
+	vkCmdCopyBuffer(m_cmdBuff, src, dst, 1, &copyRegion);
+
+}
+void vlknh::SingleTimeCommandBuffer::submit() {
+	
+	assert(!m_bufferSubmitted && "Already submitted the buffer"); 
+	if (m_bufferSubmitted) return;
+
+	vkEndCommandBuffer(m_cmdBuff);
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers    = &cmdBuff;
+	submitInfo.pCommandBuffers    = &m_cmdBuff;
 
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueSubmit(m_deviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
+	vkQueueWaitIdle(m_deviceQueue);
+
+	vkFreeCommandBuffers(m_device, m_commandPool, 1, &m_cmdBuff);
+
+}
+vlknh::SingleTimeCommandBuffer::~SingleTimeCommandBuffer() {
+	assert(m_bufferSubmitted); 
+	if(m_bufferSubmitted) return; 
+	submit(); 
 }

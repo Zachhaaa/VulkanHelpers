@@ -54,12 +54,29 @@ void            loadBuffer                 (VkDevice device, VkDeviceMemory buff
 void            loadDeviceLocalBuffer      (VkDevice device, const LoadLocalBufferInfo& loadInfo, VkBuffer deviceLocalBuffer);
 VkDescriptorSet createTextureImage         (VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources);
 
-	namespace SingleTimeCommandBuffer {
+	class SingleTimeCommandBuffer {
+	public: 
 
-	void begin  (VkDevice device, VkCommandPool commandPool, VkCommandBuffer* cmdBuff);
-	void copy   (VkCommandBuffer cmdBuff, VkDeviceSize buffSize, VkBuffer src, VkBuffer dst); 
-	void submit (VkDevice device, VkCommandBuffer cmdBuff, VkCommandPool commandPool, VkQueue graphicsQueue);
+		SingleTimeCommandBuffer(VkDevice device, VkCommandPool commandPool, VkQueue deviceQueue, bool beginRecordingCmds = true);
 
-	}
+		void begin  ();
+		void copy   (VkDeviceSize buffSize, VkBuffer src, VkBuffer dst); 
+		void submit ();
+		
+		~SingleTimeCommandBuffer();
+
+	public:
+
+		VkCommandBuffer m_cmdBuff; 
+
+	private: 
+
+		VkDevice        m_device; 
+		VkQueue         m_deviceQueue; 
+		VkCommandPool   m_commandPool;
+		bool			m_bufferRecording; 
+		bool            m_bufferSubmitted; 
+
+	}; 
 
 }
