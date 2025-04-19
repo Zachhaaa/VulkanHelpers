@@ -5,7 +5,9 @@
 #include <memory>
 #include <vector>
 
-VkResult vlknh::createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
+namespace vlknh {
+
+VkResult createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
@@ -14,14 +16,14 @@ VkResult vlknh::createDebugUtilsMessengerEXT(VkInstance instance, const VkDebugU
 		return VK_ERROR_EXTENSION_NOT_PRESENT;
 	}
 }
-void vlknh::destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+void     destroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		func(instance, debugMessenger, pAllocator);
 	}
 }
 
-bool vlknh::getQueueFamilyFlagsIndex(VkPhysicalDevice physicalDevice, VkQueueFlags desiredQueueFlags, uint32_t* index) {
+bool            getQueueFamilyFlagsIndex(VkPhysicalDevice physicalDevice, VkQueueFlags desiredQueueFlags, uint32_t* index) {
 	uint32_t queueFamilyPropertyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
 	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyPropertyCount);
@@ -36,7 +38,7 @@ bool vlknh::getQueueFamilyFlagsIndex(VkPhysicalDevice physicalDevice, VkQueueFla
 	}
 	return false; 
 }
-bool vlknh::getQueueFamilyPresentIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* index) {
+bool            getQueueFamilyPresentIndex(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, uint32_t* index) {
 	uint32_t queueFamilyPropertyCount = 0;
 	vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertyCount, nullptr);
 
@@ -48,7 +50,7 @@ bool vlknh::getQueueFamilyPresentIndex(VkPhysicalDevice physicalDevice, VkSurfac
 	}
 	return false;
 }
-VkShaderModule vlknh::createShaderModule(VkDevice device, const char* fileName) {
+VkShaderModule  createShaderModule(VkDevice device, const char* fileName) {
 
 	FILE* file = fopen(fileName, "rb");
 	assert(file != NULL);
@@ -75,72 +77,9 @@ VkShaderModule vlknh::createShaderModule(VkDevice device, const char* fileName) 
 	return shaderModule;
 
 }
-void vlknh::createBuffer(VkDevice device, const BufferCreateInfo& createInfo, VkBuffer* buff, VkDeviceMemory* buffMem) {
 
-	VkBufferCreateInfo buffInfo{};
-	buffInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffInfo.size        = createInfo.size;
-	buffInfo.usage       = createInfo.usage;
-	buffInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	VkResult err = vkCreateBuffer(device, &buffInfo, nullptr, buff);
-	assert(err == VK_SUCCESS && "Buffer creation failed");
-
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(device, *buff, &memRequirements);
-
-	VkPhysicalDeviceMemoryProperties memProps;
-	vkGetPhysicalDeviceMemoryProperties(createInfo.physicalDevice, &memProps);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-
-	uint32_t i = 0;
-	for (; i < memProps.memoryTypeCount; i++) {
-		if (memRequirements.memoryTypeBits & (1 << i) && memProps.memoryTypes[i].propertyFlags & createInfo.properties) {
-			break;
-		}
-	}
-	allocInfo.memoryTypeIndex = i;
-
-	err = vkAllocateMemory(device, &allocInfo, nullptr, buffMem);
-	assert(err == VK_SUCCESS && "Buffer allocation failed");
-
-	vkBindBufferMemory(device, *buff, *buffMem, 0);
-
-}
-void vlknh::loadBuffer(VkDevice device, VkDeviceMemory buffMem, void* buffData, VkDeviceSize buffSize) {
-
-	void* data;
-	vkMapMemory(device, buffMem, 0, buffSize, 0, &data);
-	memcpy(data, buffData, buffSize);
-	vkUnmapMemory(device, buffMem);
-
-}
-void vlknh::loadDeviceLocalBuffer(VkDevice device, const LoadLocalBufferInfo& loadInfo,  VkBuffer deviceLocalBuffer) {
-	
-	VkBuffer       stageBuff; 
-	VkDeviceMemory stageMem; 
-
-	vlknh::BufferCreateInfo buffInfo{};
-    buffInfo.physicalDevice = loadInfo.physicalDevice;
-    buffInfo.size           = loadInfo.size;
-    buffInfo.usage          = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-    buffInfo.properties     = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-	vlknh::createBuffer(device, buffInfo, &stageBuff, &stageMem);
-	vlknh::loadBuffer(device, stageMem, loadInfo.data, loadInfo.size);
-
-	SingleTimeCommandBuffer singleTimeBuff(device, loadInfo.commandPool, loadInfo.commandQueue); 
-	singleTimeBuff.copy(loadInfo.size, stageBuff, deviceLocalBuffer);
-	singleTimeBuff.submit(); 
-
-	vkFreeMemory(device, stageMem, nullptr);
-	vkDestroyBuffer(device, stageBuff, nullptr);
-
-}
-VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources) {
+/*
+VkDescriptorSet createTextureImage(VkDevice device, const TextureImageCreateInfo& createInfo, TextureImageResources& imgResources) {
 
 	assert(createInfo.pPixelData != nullptr); 
 
@@ -304,70 +243,148 @@ VkDescriptorSet vlknh::createTextureImage(VkDevice device, const TextureImageCre
 	return desciptorSet; 
 
 }
+*/
 
-vlknh::SingleTimeCommandBuffer::SingleTimeCommandBuffer(VkDevice device, VkCommandPool commandPool, VkQueue deviceQueue, bool beginRecordingCmds) {
+void Buffer::create(const ResourceContext* resourceContext, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+
+	m_Size            = size;
+	m_ResourceContext = resourceContext; 
+
+	VkBufferCreateInfo buffInfo{};
+	buffInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	buffInfo.size        = size;
+	buffInfo.usage       = usage;
+	buffInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	VkResult err = vkCreateBuffer(resourceContext->device, &buffInfo, nullptr, &m_Buffer);
+	assert(err == VK_SUCCESS && "Buffer creation failed");
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(resourceContext->device, m_Buffer, &memRequirements);
+
+	VkPhysicalDeviceMemoryProperties memProps;
+	vkGetPhysicalDeviceMemoryProperties(resourceContext->physicalDevice, &memProps);
+
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+
+	uint32_t i = 0;
+	for (; i < memProps.memoryTypeCount; i++) {
+		if (memRequirements.memoryTypeBits & (1 << i) && memProps.memoryTypes[i].propertyFlags & properties) {
+			break;
+		}
+	}
+	allocInfo.memoryTypeIndex = i;
+
+	err = vkAllocateMemory(resourceContext->device, &allocInfo, nullptr, &m_Memory);
+	assert(err == VK_SUCCESS && "Buffer allocation failed");
+
+	vkBindBufferMemory(resourceContext->device, m_Buffer, m_Memory, 0);
+
+}
+void Buffer::createLoadDeviceLocal(const ResourceContext* resourceContext, VkBufferUsageFlags usage, size_t size, const void* data) {
+
+	m_Size = size;
+	m_ResourceContext = resourceContext;
+
+	Buffer stagingBuffer; 
+	constexpr VkMemoryPropertyFlags stagingBufferProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT; 
+	stagingBuffer.create(resourceContext, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBufferProperties); 
+	stagingBuffer.load(data); 
+
+	create(resourceContext, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT); 
+
+	SingleTimeCommandBuffer singleTimeCommandBuffer(resourceContext); 
+	singleTimeCommandBuffer.copy(size, stagingBuffer.m_Buffer, m_Buffer); 
+	singleTimeCommandBuffer.submit(); 
+
+
+}
+void Buffer::load(const void* data) {
+
+	void* bufferData;
+	vkMapMemory(m_ResourceContext->device, m_Memory, 0, m_Size, 0, &bufferData);
+	memcpy(bufferData, data, m_Size);
+	vkUnmapMemory(m_ResourceContext->device, m_Memory);
+
+}
+void Buffer::destroy() {
+
+	vkFreeMemory(m_ResourceContext->device, m_Memory, nullptr); 
+	vkDestroyBuffer(m_ResourceContext->device, m_Buffer, nullptr); 
+	m_Buffer = VK_NULL_HANDLE;
+	m_Memory = VK_NULL_HANDLE;
+
+}
+     Buffer::~Buffer() {
+	if (!m_Buffer) return; 
+	destroy(); 
+}
+
+     SingleTimeCommandBuffer::SingleTimeCommandBuffer(const ResourceContext* resourceContext, bool beginRecordingCmds) {
 	
-	m_device          = device; 
-	m_deviceQueue     = deviceQueue;
-	m_commandPool     = commandPool;
-	m_bufferRecording = false;
-	m_bufferSubmitted = false;
+	m_ResourceContext = resourceContext;
 
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool        = commandPool;
+	allocInfo.commandPool        = resourceContext->commandPool;
 	allocInfo.commandBufferCount = 1;
 
-	vkAllocateCommandBuffers(m_device, &allocInfo, &m_cmdBuff);
+	vkAllocateCommandBuffers(resourceContext->device, &allocInfo, &m_CmdBuffer);
 
-	if (beginRecordingCmds) {
+	if (beginRecordingCmds)
 		begin();
-	}
+
 }
-void vlknh::SingleTimeCommandBuffer::begin() {
+void SingleTimeCommandBuffer::begin() {
 
-	assert(!m_bufferRecording && "Already began recording commands");
-	if (m_bufferRecording) return;
+	assert(!m_BufferRecording && "Already began recording commands");
+	if (m_BufferRecording) return;
 
-	m_bufferRecording = true;
+	m_BufferRecording = true;
 
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-	vkBeginCommandBuffer(m_cmdBuff, &beginInfo);
+	vkBeginCommandBuffer(m_CmdBuffer, &beginInfo);
 
 }
-void vlknh::SingleTimeCommandBuffer::copy(VkDeviceSize buffSize, VkBuffer src, VkBuffer dst) {
+void SingleTimeCommandBuffer::copy(size_t buffSize, VkBuffer src, VkBuffer dst) {
 
-	assert(m_bufferRecording && "Never called begin() on command buffer."); 
+	assert(m_BufferRecording && "Never called begin() on command buffer."); 
 
 	VkBufferCopy copyRegion = { 0, 0, buffSize };
-	vkCmdCopyBuffer(m_cmdBuff, src, dst, 1, &copyRegion);
+	vkCmdCopyBuffer(m_CmdBuffer, src, dst, 1, &copyRegion);
 
 }
-void vlknh::SingleTimeCommandBuffer::submit() {
+void SingleTimeCommandBuffer::submit() {
 	
-	assert(!m_bufferSubmitted && "Already submitted the buffer"); 
-	if (m_bufferSubmitted) return;
+	assert(m_CmdBuffer && "Already submitted the buffer"); 
+	if (!m_CmdBuffer) return;
 
-	vkEndCommandBuffer(m_cmdBuff);
+	vkEndCommandBuffer(m_CmdBuffer);
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers    = &m_cmdBuff;
+	submitInfo.pCommandBuffers    = &m_CmdBuffer;
 
-	vkQueueSubmit(m_deviceQueue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueSubmit(m_ResourceContext->graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
 
-	vkQueueWaitIdle(m_deviceQueue);
+	vkQueueWaitIdle(m_ResourceContext->graphicsQueue);
 
-	vkFreeCommandBuffers(m_device, m_commandPool, 1, &m_cmdBuff);
+	vkFreeCommandBuffers(m_ResourceContext->device, m_ResourceContext->commandPool, 1, &m_CmdBuffer);
+
+	m_CmdBuffer = VK_NULL_HANDLE; 
 
 }
-vlknh::SingleTimeCommandBuffer::~SingleTimeCommandBuffer() {
-	assert(m_bufferSubmitted); 
-	if(m_bufferSubmitted) return; 
+     SingleTimeCommandBuffer::~SingleTimeCommandBuffer() {
+	if (!m_CmdBuffer) return; 
 	submit(); 
 }
+
+}
+
