@@ -1,6 +1,6 @@
 #include "VulkanHelpers.hpp"
 
-#include <cstdio> 
+#include <fstream>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -52,18 +52,18 @@ bool            getQueueFamilyPresentIndex(VkPhysicalDevice physicalDevice, VkSu
 }
 VkShaderModule  createShaderModule(VkDevice device, const char* fileName) {
 
-	FILE* file = fopen(fileName, "rb");
-	assert(file != NULL);
+	std::fstream file(fileName, std::ios::in | std::ios::binary); 
+	assert(file);
 
-	fseek(file, 0, SEEK_END);
-	int fileSize = ftell(file);
-	fseek(file, 0, SEEK_SET);
+	file.seekg(0, std::ios::end);
+	std::streamsize fileSize = file.tellg(); 
+	file.seekg(0, std::ios::beg); 
 
 	std::unique_ptr<char[]> byteCode(new char[fileSize]);
 
-	fread(byteCode.get(), sizeof(char), fileSize, file);
+	file.read(byteCode.get(), fileSize); 
 
-	fclose(file);
+	file.close();
 
 	VkShaderModuleCreateInfo createInfo{};
 	createInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
